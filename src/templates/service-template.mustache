@@ -1,0 +1,190 @@
+import { Injectable, Inject, } from '@angular/core';
+import { HttpClient, HttpErrorResponse, HttpHeaders, HttpParams, HttpEvent, HttpResponse } from '@angular/common/http';
+import { Observable, throwError, BehaviorSubject } from 'rxjs';
+import { catchError, retry } from 'rxjs/operators';
+import { API_ENDPOINT, API_TOKEN, API_KEYS, API_BASIC_TOKEN, METHOD_CONFIG } from './{{configuration.moduleName}}.module';
+import { MethodConfig, ApiKeys } from './configuration';
+import {
+{{#methods}}{{#parametersType}}    {{parametersType}},
+    {{/parametersType}}{{/methods}}
+{{#models}}    {{name}},
+{{/models}}
+} from './models';
+
+export interface ErrorObject {
+    code: string;
+    description: string;
+}
+
+export class BaseService {
+
+    appendArrayHttpParams( name: string, parameter: any[], httpParams: HttpParams ): HttpParams {
+        if ( !parameter ) return null;
+        parameter.forEach( value =>
+            httpParams.append( name, value?.toString() )
+        );
+        return httpParams;
+    }
+
+    getSerializedCookieParams( parameters: any ) {
+        let cookieValue = '';
+        Object.keys( parameters ).forEach( ( name ) => {
+            if ( Array.isArray( parameters[name] ) ) {
+                parameters[name].forEach( value =>
+                    cookieValue += `${ name }=${ value }; ` );
+            } else {
+                cookieValue += `${ name }=${ parameters[name] }; `;
+            }
+        } );
+        return cookieValue;
+    }
+
+    isFormDataMime( mime: string ): boolean {
+        return mime === 'multipart/form-data';
+    }
+
+    getSerializedFormDataBody( body: any ): FormData {
+        if ( !body ) return null;
+        let formData = new FormData();
+        Object.keys( body ).forEach( key => {
+            if ( Array.isArray( body[key] ) ) {
+                body[key].forEach( value => formData.append( key, value?.toString() ) );
+            } else {
+                formData.append( key, body[key]?.toString() );
+            }
+        } );
+        return formData;
+    }
+}
+
+@Injectable()
+export class {{#func.capitalize}}{{configuration.serviceName}}{{/func.capitalize}}Service extends BaseService {
+
+    private apiEndpoint: string;
+    private apiToken: string;
+    private basicToken: string;
+    private apiKeys: ApiKeys;
+    private methodConfig: MethodConfig;
+
+    constructor(
+        private http: HttpClient,
+        @Inject( API_ENDPOINT ) endpoint: BehaviorSubject<string>,
+        @Inject( API_TOKEN ) token: BehaviorSubject<string>,
+        @Inject( API_BASIC_TOKEN ) basicToken: BehaviorSubject<string>,
+        @Inject( API_KEYS ) keys: BehaviorSubject<ApiKeys>,
+        @Inject( METHOD_CONFIG ) methodConfig: BehaviorSubject<MethodConfig>,
+    ) {
+        super();
+        endpoint.subscribe( value => {
+            this.apiEndpoint = value;
+        } );
+
+        token.subscribe( value => {
+            this.apiToken = value;
+        } );
+
+        basicToken.subscribe( value => {
+            this.basicToken = value;
+        } );
+
+        keys.subscribe( value => {
+            this.apiKeys = value;
+        } );
+
+        methodConfig.subscribe( value => {
+            this.methodConfig = value;
+        } );
+    }
+
+    {{#methods}}
+    {{name}}({{#parametersType}} parameters: {{parametersType}},{{/parametersType}}{{#hasRequestBody}} body{{^required}}?{{/required}}: {{#requestBodies}}{{schema}}{{^isLast}} | {{/isLast}}{{/requestBodies}},{{/hasRequestBody}} observe?: 'body' ): Observable<{{#hasSuccessResponse}}{{#successResponse}}{{#content}}{{{schema}}}{{^isLast}} | {{/isLast}}{{/content}}{{/successResponse}}{{/hasSuccessResponse}}{{^hasSuccessResponse}}any{{/hasSuccessResponse}}>;
+    {{name}}({{#parametersType}} parameters: {{parametersType}},{{/parametersType}}{{#hasRequestBody}} body{{^required}}?{{/required}}: {{#requestBodies}}{{schema}}{{^isLast}} | {{/isLast}}{{/requestBodies}},{{/hasRequestBody}} observe?: 'response' ): Observable<HttpResponse<{{#hasSuccessResponse}}{{#successResponse}}{{#content}}{{{schema}}}{{^isLast}} | {{/isLast}}{{/content}}{{/successResponse}}{{/hasSuccessResponse}}{{^hasSuccessResponse}}any{{/hasSuccessResponse}}>>;
+    {{name}}({{#parametersType}} parameters: {{parametersType}},{{/parametersType}}{{#hasRequestBody}} body{{^required}}?{{/required}}: {{#requestBodies}}{{schema}}{{^isLast}} | {{/isLast}}{{/requestBodies}},{{/hasRequestBody}} observe?: 'events' ): Observable<HttpEvent<{{#hasSuccessResponse}}{{#successResponse}}{{#content}}{{{schema}}}{{^isLast}} | {{/isLast}}{{/content}}{{/successResponse}}{{/hasSuccessResponse}}{{^hasSuccessResponse}}any{{/hasSuccessResponse}}>>;
+    {{name}}({{#parametersType}} parameters: {{parametersType}},{{/parametersType}}{{#hasRequestBody}} body{{^required}}?{{/required}}: {{#requestBodies}}{{schema}}{{^isLast}} | {{/isLast}}{{/requestBodies}},{{/hasRequestBody}} observe: any = 'body' ): Observable<any> {
+{{#hasHeaders}}        let _headers = new HttpHeaders( {
+{{#security.basicHttpSchemas}}            'Authorization': `Basic ${ this.basicToken }`,
+{{/security.basicHttpSchemas}}
+{{#security.bearerHttpSchemas}}            'Authorization': `Bearer ${ this.apiToken }`,
+{{/security.bearerHttpSchemas}}
+{{#security.headerApiKeySchemas}}            '{{{name}}}': `${ this.apiKeys['{{{name}}}'] }`,
+{{/security.headerApiKeySchemas}}
+{{#hasRequestBody}}            'Content-Type': this.methodConfig.{{{name}}}.consume,
+{{/hasRequestBody}}
+{{#successResponse}}
+{{#hasSuccessResponse}}            'Accept': this.methodConfig.{{{name}}}.accept,
+{{/hasSuccessResponse}} 
+{{/successResponse}}
+{{#headerParameters}}            '{{name}}': parameters.{{name}},
+{{/headerParameters}}
+        } );
+{{/hasHeaders}}
+{{#hasParameters}}        let _params = new HttpParams();
+{{/hasParameters}}
+{{#queryParameters}}
+{{#isArray}}        _params = this.appendArrayHttpParams( '{{{name}}}', parameters.{{{name}}}, _params);
+{{/isArray}}
+{{^isArray}}        _params.append( '{{{name}}}', parameters.{{{name}}}?.toString() );
+{{/isArray}}
+{{/queryParameters}}
+{{#security.queryApiKeySchemas}}        _params.append( '{{{name}}}', this.apiKeys['{{{name}}}']?.toString() );
+{{/security.queryApiKeySchemas}}
+
+        const httpOptions = { 
+{{#hasHeaders}}            headers: _headers,
+{{/hasHeaders}}
+{{#hasParameters}}            params: _params,
+{{/hasParameters}}
+            reportProgress: this.methodConfig.{{name}}.reportProgress,
+            withCredentials: this.methodConfig.{{name}}.withCredentials
+        };
+
+        return this.http.{{httpMethod}}<{{#hasSuccessResponse}}{{#successResponse}}{{#content}}{{{schema}}}{{^isLast}} | {{/isLast}}{{/content}}{{/successResponse}}{{/hasSuccessResponse}}{{^hasSuccessResponse}}any{{/hasSuccessResponse}}>( `${ this.apiEndpoint }{{{path}}}`{{#hasRequestBody}}, 
+{{^consumeFormData}}            body{{/consumeFormData}}{{#consumeFormData}}            this.isFormDataMime( this.methodConfig.addPet.consume ) ? this.getSerializedFormDataBody( body ) : body {{/consumeFormData}}{{/hasRequestBody}}{{#hasNullBody}}, 
+            null
+{{/hasNullBody}}, 
+            httpOptions )
+            .pipe(
+{{#configuration.retryFailedRequest}}                retry( {{configuration.retryFailedRequest}} ),
+{{/configuration.retryFailedRequest}}
+                catchError( err => {{#hasFailResponses}}this.handle{{#func.capitalize}}{{name}}{{/func.capitalize}}Error{{/hasFailResponses}}{{^hasFailResponses}}this.handleErrorDefault{{/hasFailResponses}}( err ) )
+            );
+    }
+
+    {{/methods}}
+
+{{#methods}}
+{{#hasFailResponses}}   
+    handle{{#func.capitalize}}{{name}}{{/func.capitalize}}Error( error: HttpErrorResponse ) {
+        return this.handleError( error, [
+{{#failResponses}}            {
+                code: "{{code}}",
+                description: "{{{description}}}",
+            },
+{{/failResponses}}        ] );
+    }
+
+{{/hasFailResponses}}
+{{/methods}}
+
+    private handleErrorDefault( error: HttpErrorResponse ) {
+        return this.handleError( error );
+    }
+
+    private handleError( error: HttpErrorResponse, errorList?: ErrorObject[] ) {
+        if ( error.error instanceof ErrorEvent ) {
+            // A client-side or network error occurred. Handle it accordingly.
+            console.error( 'An error occurred:', error.error.message );
+        } else {
+            // The backend returned an unsuccessful response code.
+            // The response body may contain clues as to what went wrong,
+            let description = errorList?.find( e => e.code === error.status.toString() )?.description;
+            description = description ? errorList?.find( e => e.code === "default" )?.description : "";
+            console.error(
+                `Backend returned code ${ error.status }> ${ description }` +
+                `body was: ${ error.error }` );
+        }
+        // return an observable with a user-facing error message
+        return throwError(
+            'Something bad happened; please try again later.' );
+    }
+}

@@ -1,0 +1,31 @@
+{{#models}}
+export type {{name}} = {{type}};
+{{/models}}
+
+{{#enumTypes}}
+export type {{name}} ={{#enum}} "{{value}}" {{^last}}|{{/last}}{{/enum}};
+{{/enumTypes}}
+
+{{#complexTypes}}
+export interface {{ name }} {{#extends}}extends {{extends}} {{/extends}}{
+{{#properties}}
+{{^isAdditional}}    {{ name }}{{^required}}?{{/required}}: {{ type }}{{#isArray}}[]{{/isArray}};
+{{/isAdditional}}
+{{#isAdditional}}    [id: string]: {{ type }}{{#isArray}}[]{{/isArray}};
+{{/isAdditional}}
+{{/properties}}
+}
+
+{{/complexTypes}}
+
+{{#parameterTypes}}
+export interface {{ name }} {
+{{#properties}}
+{{^isAdditional}}    {{ name }}{{^required}}?{{/required}}: {{ type }}{{#isArray}}[]{{/isArray}};
+{{/isAdditional}}
+{{#isAdditional}}    [id: string]: {{ type }}{{#isArray}}[]{{/isArray}};
+{{/isAdditional}}
+{{/properties}}
+}
+
+{{/parameterTypes}}

@@ -1,0 +1,32 @@
+import { HttpClientModule, HTTP_INTERCEPTORS } from '@angular/common/http';
+import { {{#func.capitalize}}{{configuration.serviceName}}{{/func.capitalize}}Service } from './{{configuration.serviceName}}.service';
+import { NgModule, InjectionToken } from '@angular/core';
+import { {{#func.capitalize}}{{configuration.interceptorName}}{{/func.capitalize}}Interceptor } from './{{configuration.interceptorName}}.interceptor';
+import { BehaviorSubject } from 'rxjs';
+import { apiEndpoints, methodConfig, MethodConfig, ApiKeys } from './configuration';
+
+export const API_ENDPOINT = new InjectionToken<string>( 'api-endpoint' );
+export const API_TOKEN = new InjectionToken<string>( 'api-token' );
+export const API_BASIC_TOKEN = new InjectionToken<string>( 'api-base64-token' );
+export const API_KEYS = new InjectionToken<ApiKeys>( 'api-keys' );
+export const METHOD_CONFIG = new InjectionToken<MethodConfig>( 'method-configuration' );
+
+let ENDPOINT = new BehaviorSubject<string>( apiEndpoints[0] );
+let TOKEN = new BehaviorSubject<string>( null );
+let BASIC_TOKEN = new BehaviorSubject<string>( null );
+let KEYS = new BehaviorSubject<ApiKeys>( null );
+let CONFIG = new BehaviorSubject<MethodConfig>( methodConfig );
+
+@NgModule( {
+    imports: [HttpClientModule],
+    providers: [
+        { provide: API_ENDPOINT, useValue: ENDPOINT },
+        { provide: API_TOKEN, useValue: TOKEN },
+        { provide: API_BASIC_TOKEN, useValue: BASIC_TOKEN },
+        { provide: API_KEYS, useValue: KEYS },
+        { provide: METHOD_CONFIG, useValue: CONFIG },
+        { provide: HTTP_INTERCEPTORS, useClass: {{#func.capitalize}}{{configuration.interceptorName}}{{/func.capitalize}}Interceptor, multi: true },
+        {{#func.capitalize}}{{configuration.serviceName}}{{/func.capitalize}}Service
+    ]
+} )
+export class {{#func.capitalize}}{{configuration.moduleName}}{{/func.capitalize}}Module { }

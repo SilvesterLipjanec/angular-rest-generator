@@ -1,0 +1,46 @@
+
+export interface MethodConfig {
+    [method: string]: {
+        consume: string;
+        accept: string;
+        reportProgress: boolean,
+        withCredentials: boolean,
+    }
+}
+
+export interface ApiKeys {
+    [name: string]: string;
+}
+
+export const apiEndpoints = [
+{{#servers}}    "{{{.}}}",
+{{/servers}}
+];
+
+{{#methods}}
+{{#hasMediaTypeSetting}}const {{name}} = {
+{{#hasRequestBody}}    consume: [{{#requestBodies}} '{{{mediaType}}}',{{/requestBodies}} ],
+{{/hasRequestBody}}
+{{#hasSuccessResponse}}    accept: [{{#successResponse}}{{#content}} '{{{mediaType}}}',{{/content}}{{/successResponse}} ]
+{{/hasSuccessResponse}}
+};
+
+{{/hasMediaTypeSetting}}
+{{/methods}}
+
+export const methodConfig: MethodConfig = {
+{{#methods}}    {{name}}: {
+{{#hasRequestBody}}        consume: {{name}}.consume[0],
+{{/hasRequestBody}}
+{{^hasRequestBody}}        consume: null,
+{{/hasRequestBody}}
+{{#hasSuccessResponse}}        accept: {{name}}.accept[0],
+{{/hasSuccessResponse}}
+{{^hasSuccessResponse}}        accept: null,
+{{/hasSuccessResponse}}
+        reportProgress: false,
+        withCredentials: false
+    },
+
+{{/methods}}
+}
