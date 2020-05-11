@@ -2,13 +2,15 @@ import { Injectable, Inject, } from '@angular/core';
 import { HttpClient, HttpErrorResponse, HttpHeaders, HttpParams, HttpEvent, HttpResponse } from '@angular/common/http';
 import { Observable, throwError, BehaviorSubject } from 'rxjs';
 import { catchError, retry } from 'rxjs/operators';
-import { API_ENDPOINT, API_TOKEN, API_KEYS, API_BASIC_TOKEN, METHOD_CONFIG } from './{{configuration.moduleName}}.module';
+import { API_ENDPOINT, API_BEARER_TOKEN, API_KEYS, API_BASIC_TOKEN, METHOD_CONFIG } from './{{configuration.moduleName}}.module';
 import { MethodConfig, ApiKeys } from './configuration';
 import {
-{{#methods}}{{#parametersType}}    {{parametersType}},
-    {{/parametersType}}{{/methods}}
+{{#configuration.parametersAsObject}}{{#methods}}{{#parametersType}}    {{parametersType}},
+    {{/parametersType}}{{/methods}}{{/configuration.parametersAsObject}}
 {{#models}}    {{name}},
 {{/models}}
+{{#enumTypes}}    {{name}},
+{{/enumTypes}}
 } from './models';
 
 export interface ErrorObject {
@@ -46,13 +48,17 @@ export class BaseService {
     getSerializedFormDataBody( body: any ): FormData {
         if ( !body ) return null;
         let formData = new FormData();
-        Object.keys( body ).forEach( key => {
-            if ( Array.isArray( body[key] ) ) {
-                body[key].forEach( value => formData.append( key, value?.toString() ) );
-            } else {
-                formData.append( key, body[key]?.toString() );
-            }
-        } );
+        if ( typeof body === 'object') {
+            Object.keys( body ).forEach( key => {
+                if ( Array.isArray( body[key] ) ) {
+                    body[key].forEach( value => formData.append( key, value ) );
+                } else {
+                    formData.append( key, body[key] );
+                }
+            } );
+        } else {
+            formData.append( 'body', body );
+        }
         return formData;
     }
 }
@@ -61,7 +67,7 @@ export class BaseService {
 export class {{#func.capitalize}}{{configuration.serviceName}}{{/func.capitalize}}Service extends BaseService {
 
     private apiEndpoint: string;
-    private apiToken: string;
+    private bearerToken: string;
     private basicToken: string;
     private apiKeys: ApiKeys;
     private methodConfig: MethodConfig;
@@ -69,7 +75,7 @@ export class {{#func.capitalize}}{{configuration.serviceName}}{{/func.capitalize
     constructor(
         private http: HttpClient,
         @Inject( API_ENDPOINT ) endpoint: BehaviorSubject<string>,
-        @Inject( API_TOKEN ) token: BehaviorSubject<string>,
+        @Inject( API_BEARER_TOKEN ) bearerToken: BehaviorSubject<string>,
         @Inject( API_BASIC_TOKEN ) basicToken: BehaviorSubject<string>,
         @Inject( API_KEYS ) keys: BehaviorSubject<ApiKeys>,
         @Inject( METHOD_CONFIG ) methodConfig: BehaviorSubject<MethodConfig>,
@@ -79,8 +85,8 @@ export class {{#func.capitalize}}{{configuration.serviceName}}{{/func.capitalize
             this.apiEndpoint = value;
         } );
 
-        token.subscribe( value => {
-            this.apiToken = value;
+        bearerToken.subscribe( value => {
+            this.bearerToken = value;
         } );
 
         basicToken.subscribe( value => {
@@ -97,36 +103,35 @@ export class {{#func.capitalize}}{{configuration.serviceName}}{{/func.capitalize
     }
 
     {{#methods}}
-    {{name}}({{#parametersType}} parameters: {{parametersType}},{{/parametersType}}{{#hasRequestBody}} body{{^required}}?{{/required}}: {{#requestBodies}}{{schema}}{{^isLast}} | {{/isLast}}{{/requestBodies}},{{/hasRequestBody}} observe?: 'body' ): Observable<{{#hasSuccessResponse}}{{#successResponse}}{{#content}}{{{schema}}}{{^isLast}} | {{/isLast}}{{/content}}{{/successResponse}}{{/hasSuccessResponse}}{{^hasSuccessResponse}}any{{/hasSuccessResponse}}>;
-    {{name}}({{#parametersType}} parameters: {{parametersType}},{{/parametersType}}{{#hasRequestBody}} body{{^required}}?{{/required}}: {{#requestBodies}}{{schema}}{{^isLast}} | {{/isLast}}{{/requestBodies}},{{/hasRequestBody}} observe?: 'response' ): Observable<HttpResponse<{{#hasSuccessResponse}}{{#successResponse}}{{#content}}{{{schema}}}{{^isLast}} | {{/isLast}}{{/content}}{{/successResponse}}{{/hasSuccessResponse}}{{^hasSuccessResponse}}any{{/hasSuccessResponse}}>>;
-    {{name}}({{#parametersType}} parameters: {{parametersType}},{{/parametersType}}{{#hasRequestBody}} body{{^required}}?{{/required}}: {{#requestBodies}}{{schema}}{{^isLast}} | {{/isLast}}{{/requestBodies}},{{/hasRequestBody}} observe?: 'events' ): Observable<HttpEvent<{{#hasSuccessResponse}}{{#successResponse}}{{#content}}{{{schema}}}{{^isLast}} | {{/isLast}}{{/content}}{{/successResponse}}{{/hasSuccessResponse}}{{^hasSuccessResponse}}any{{/hasSuccessResponse}}>>;
-    {{name}}({{#parametersType}} parameters: {{parametersType}},{{/parametersType}}{{#hasRequestBody}} body{{^required}}?{{/required}}: {{#requestBodies}}{{schema}}{{^isLast}} | {{/isLast}}{{/requestBodies}},{{/hasRequestBody}} observe: any = 'body' ): Observable<any> {
-{{#hasHeaders}}        let _headers = new HttpHeaders( {
-{{#security.basicHttpSchemas}}            'Authorization': `Basic ${ this.basicToken }`,
-{{/security.basicHttpSchemas}}
-{{#security.bearerHttpSchemas}}            'Authorization': `Bearer ${ this.apiToken }`,
-{{/security.bearerHttpSchemas}}
-{{#security.headerApiKeySchemas}}            '{{{name}}}': `${ this.apiKeys['{{{name}}}'] }`,
-{{/security.headerApiKeySchemas}}
-{{#hasRequestBody}}            'Content-Type': this.methodConfig.{{{name}}}.consume,
-{{/hasRequestBody}}
-{{#successResponse}}
-{{#hasSuccessResponse}}            'Accept': this.methodConfig.{{{name}}}.accept,
-{{/hasSuccessResponse}} 
-{{/successResponse}}
-{{#headerParameters}}            '{{name}}': parameters.{{name}},
-{{/headerParameters}}
-        } );
+    {{name}}({{^configuration.parametersAsObject}}{{#pathParameters}} {{name}}{{^required}}?{{/required}}: {{type}}{{#isArray}}[]{{/isArray}},{{/pathParameters}}{{#headerParameters}} {{name}}{{^required}}?{{/required}}: {{type}}{{#isArray}}[]{{/isArray}},{{/headerParameters}}{{#queryParameters}} {{name}}{{^required}}?{{/required}}: {{type}}{{#isArray}}[]{{/isArray}},{{/queryParameters}}{{/configuration.parametersAsObject}}{{#configuration.parametersAsObject}}{{#parametersType}} parameters: {{parametersType}},{{/parametersType}}{{/configuration.parametersAsObject}}{{#hasRequestBody}} body{{^required}}?{{/required}}: {{#requestBodies}}{{schema}}{{^isLast}} | {{/isLast}}{{/requestBodies}},{{/hasRequestBody}} observe?: 'body' ): Observable<{{#hasSuccessResponse}}{{#successResponse}}{{#content}}{{{schema}}}{{^isLast}} | {{/isLast}}{{/content}}{{/successResponse}}{{/hasSuccessResponse}}{{^hasSuccessResponse}}any{{/hasSuccessResponse}}>;
+    {{name}}({{^configuration.parametersAsObject}}{{#pathParameters}} {{name}}{{^required}}?{{/required}}: {{type}}{{#isArray}}[]{{/isArray}},{{/pathParameters}}{{#headerParameters}} {{name}}{{^required}}?{{/required}}: {{type}}{{#isArray}}[]{{/isArray}},{{/headerParameters}}{{#queryParameters}} {{name}}{{^required}}?{{/required}}: {{type}}{{#isArray}}[]{{/isArray}},{{/queryParameters}}{{/configuration.parametersAsObject}}{{#configuration.parametersAsObject}}{{#parametersType}} parameters: {{parametersType}},{{/parametersType}}{{/configuration.parametersAsObject}}{{#hasRequestBody}} body{{^required}}?{{/required}}: {{#requestBodies}}{{schema}}{{^isLast}} | {{/isLast}}{{/requestBodies}},{{/hasRequestBody}} observe?: 'response' ): Observable<HttpResponse<{{#hasSuccessResponse}}{{#successResponse}}{{#content}}{{{schema}}}{{^isLast}} | {{/isLast}}{{/content}}{{/successResponse}}{{/hasSuccessResponse}}{{^hasSuccessResponse}}any{{/hasSuccessResponse}}>>;
+    {{name}}({{^configuration.parametersAsObject}}{{#pathParameters}} {{name}}{{^required}}?{{/required}}: {{type}}{{#isArray}}[]{{/isArray}},{{/pathParameters}}{{#headerParameters}} {{name}}{{^required}}?{{/required}}: {{type}}{{#isArray}}[]{{/isArray}},{{/headerParameters}}{{#queryParameters}} {{name}}{{^required}}?{{/required}}: {{type}}{{#isArray}}[]{{/isArray}},{{/queryParameters}}{{/configuration.parametersAsObject}}{{#configuration.parametersAsObject}}{{#parametersType}} parameters: {{parametersType}},{{/parametersType}}{{/configuration.parametersAsObject}}{{#hasRequestBody}} body{{^required}}?{{/required}}: {{#requestBodies}}{{schema}}{{^isLast}} | {{/isLast}}{{/requestBodies}},{{/hasRequestBody}} observe?: 'events' ): Observable<HttpEvent<{{#hasSuccessResponse}}{{#successResponse}}{{#content}}{{{schema}}}{{^isLast}} | {{/isLast}}{{/content}}{{/successResponse}}{{/hasSuccessResponse}}{{^hasSuccessResponse}}any{{/hasSuccessResponse}}>>;
+    {{name}}({{^configuration.parametersAsObject}}{{#pathParameters}} {{name}}{{^required}}?{{/required}}: {{type}}{{#isArray}}[]{{/isArray}},{{/pathParameters}}{{#headerParameters}} {{name}}{{^required}}?{{/required}}: {{type}}{{#isArray}}[]{{/isArray}},{{/headerParameters}}{{#queryParameters}} {{name}}{{^required}}?{{/required}}: {{type}}{{#isArray}}[]{{/isArray}},{{/queryParameters}}{{/configuration.parametersAsObject}}{{#configuration.parametersAsObject}}{{#parametersType}} parameters: {{parametersType}},{{/parametersType}}{{/configuration.parametersAsObject}}{{#hasRequestBody}} body{{^required}}?{{/required}}: {{#requestBodies}}{{schema}}{{^isLast}} | {{/isLast}}{{/requestBodies}},{{/hasRequestBody}} observe: any = 'body' ): Observable<any> {
+
+{{#hasHeaders}}        let _headers = new HttpHeaders();
 {{/hasHeaders}}
+{{#security.basicHttpSchemas}}        this.basicToken && ( _headers = _headers.append( 'Authorization', `Basic ${ this.basicToken }` ));
+{{/security.basicHttpSchemas}}
+{{#security.bearerHttpSchemas}}        this.bearerToken && ( _headers = _headers.append( 'Authorization', `Bearer ${ this.bearerToken }` ));
+{{/security.bearerHttpSchemas}}
+{{#security.headerApiKeySchemas}}        this.apiKeys['{{{name}}}'] && ( _headers = _headers.append( '{{{name}}}', `${ this.apiKeys['{{{name}}}'] }` ));
+{{/security.headerApiKeySchemas}}
+{{#hasRequestBody}}        _headers = _headers.set( 'Content-Type', this.methodConfig.{{{name}}}.consume );
+{{/hasRequestBody}}
+{{#hasSuccessResponse}}        _headers = _headers.set( 'Accept', this.methodConfig.{{{name}}}.accept );
+{{/hasSuccessResponse}} 
+{{#headerParameters}}        {{^required}}{{#configuration.parametersAsObject}}parameters.{{/configuration.parametersAsObject}}{{{name}}} && {{/required}}( _headers = _headers.append( '{{{name}}}', {{#configuration.parametersAsObject}}parameters.{{/configuration.parametersAsObject}}{{{name}}} ){{^required}}){{/required}};
+{{/headerParameters}}
+
 {{#hasParameters}}        let _params = new HttpParams();
 {{/hasParameters}}
 {{#queryParameters}}
-{{#isArray}}        _params = this.appendArrayHttpParams( '{{{name}}}', parameters.{{{name}}}, _params);
+{{#isArray}}        {{^required}}{{#configuration.parametersAsObject}}parameters.{{/configuration.parametersAsObject}}{{{name}}} && ( _params = {{/required}}this.appendArrayHttpParams( '{{{name}}}', {{#configuration.parametersAsObject}}parameters.{{/configuration.parametersAsObject}}{{{name}}}, _params){{^required}}){{/required}};
 {{/isArray}}
-{{^isArray}}        _params.append( '{{{name}}}', parameters.{{{name}}}?.toString() );
+{{^isArray}}        {{^required}}{{#configuration.parametersAsObject}}parameters.{{/configuration.parametersAsObject}}{{{name}}} && ( _params = {{/required}}_params.append( '{{{name}}}', {{#configuration.parametersAsObject}}parameters.{{/configuration.parametersAsObject}}{{{name}}}.toString() ){{^required}}){{/required}};
 {{/isArray}}
 {{/queryParameters}}
-{{#security.queryApiKeySchemas}}        _params.append( '{{{name}}}', this.apiKeys['{{{name}}}']?.toString() );
+{{#security.queryApiKeySchemas}}        this.apiKeys['{{{name}}}'] && ( _params = _params.append( '{{{name}}}', this.apiKeys['{{{name}}}']?.toString() ));
 {{/security.queryApiKeySchemas}}
 
         const httpOptions = { 
@@ -134,12 +139,13 @@ export class {{#func.capitalize}}{{configuration.serviceName}}{{/func.capitalize
 {{/hasHeaders}}
 {{#hasParameters}}            params: _params,
 {{/hasParameters}}
+            observe: observe,
             reportProgress: this.methodConfig.{{name}}.reportProgress,
             withCredentials: this.methodConfig.{{name}}.withCredentials
         };
 
-        return this.http.{{httpMethod}}<{{#hasSuccessResponse}}{{#successResponse}}{{#content}}{{{schema}}}{{^isLast}} | {{/isLast}}{{/content}}{{/successResponse}}{{/hasSuccessResponse}}{{^hasSuccessResponse}}any{{/hasSuccessResponse}}>( `${ this.apiEndpoint }{{{path}}}`{{#hasRequestBody}}, 
-{{^consumeFormData}}            body{{/consumeFormData}}{{#consumeFormData}}            this.isFormDataMime( this.methodConfig.addPet.consume ) ? this.getSerializedFormDataBody( body ) : body {{/consumeFormData}}{{/hasRequestBody}}{{#hasNullBody}}, 
+        return this.http.{{httpMethod}}<{{#hasSuccessResponse}}{{#successResponse}}{{#content}}{{{schema}}}{{^isLast}} | {{/isLast}}{{/content}}{{/successResponse}}{{/hasSuccessResponse}}{{^hasSuccessResponse}}any{{/hasSuccessResponse}}>( `${ this.apiEndpoint }{{#path}}{{^isParam}}{{name}}{{/isParam}}{{#isParam}}${ encodeURIComponent( {{#configuration.parametersAsObject}}parameters.{{/configuration.parametersAsObject}}{{name}} ) }{{/isParam}}{{^isLast}}/{{/isLast}}{{/path}}`{{#hasRequestBody}}, 
+{{^consumeFormData}}            body{{/consumeFormData}}{{#consumeFormData}}            this.isFormDataMime( this.methodConfig.{{name}}.consume ) ? this.getSerializedFormDataBody( body ) : body {{/consumeFormData}}{{/hasRequestBody}}{{#hasNullBody}}, 
             null
 {{/hasNullBody}}, 
             httpOptions )
@@ -171,20 +177,22 @@ export class {{#func.capitalize}}{{configuration.serviceName}}{{/func.capitalize
     }
 
     private handleError( error: HttpErrorResponse, errorList?: ErrorObject[] ) {
+        let description = 'Something bad happened; please try again later.';
         if ( error.error instanceof ErrorEvent ) {
             // A client-side or network error occurred. Handle it accordingly.
             console.error( 'An error occurred:', error.error.message );
         } else {
             // The backend returned an unsuccessful response code.
             // The response body may contain clues as to what went wrong,
-            let description = errorList?.find( e => e.code === error.status.toString() )?.description;
-            description = description ? errorList?.find( e => e.code === "default" )?.description : "";
+            let defaultDescription = errorList?.find( e => e.code === "default" )?.description;
+            let codeDescription = errorList?.find( e => e.code === error.status.toString() )?.description;
+            description = codeDescription == null ? ( defaultDescription == null ? description : defaultDescription ) : codeDescription;
+
             console.error(
                 `Backend returned code ${ error.status }> ${ description }` +
                 `body was: ${ error.error }` );
         }
         // return an observable with a user-facing error message
-        return throwError(
-            'Something bad happened; please try again later.' );
+        return throwError( description );
     }
 }

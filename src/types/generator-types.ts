@@ -28,6 +28,7 @@ export interface IGeneratorConfig {
     interceptorName?: string;
     retryFailedRequest?: number;
     forceGeneration?: boolean;
+    parametersAsObject?: boolean;
 }
 
 

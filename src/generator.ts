@@ -26,7 +26,8 @@ export class Generator {
         parameterTypeSuffix: "Params",
         moduleName: "gateway",
         serviceName: "gateway",
-        interceptorName: "gateway"
+        interceptorName: "gateway",
+        parametersAsObject: false
     }
     /**@private norm specification, which generator use for generating output */
     private specification: SpecificationObject;
@@ -60,16 +61,11 @@ export class Generator {
 
     /**@private  template for configuration*/
     private configurationTemplate = __dirname + '/../src/templates/configuration-template.mustache';
-    /*
-        private modelTemplateDebug = 'c:\\VUT\\DP\\rest-app-generator\\app-generator\\src\\templates\\model-template.mustache';
-        private modulTemplateDebug = 'c:\\VUT\\DP\\rest-app-generator\\app-generator\\src\\templates\\modul-template.mustache';
-        private serviceTemplateDebug = 'c:\\VUT\\DP\\rest-app-generator\\app-generator\\src\\templates\\service-template.mustache';
-        private interceptorTemplateDebug = 'c:\\VUT\\DP\\rest-app-generator\\app-generator\\src\\templates\\interceptor-template.mustache';
-        private configurationTemplateDebug = 'c:\\VUT\\DP\\rest-app-generator\\app-generator\\src\\templates\\configuration-template.mustache';
-    */
 
-    constructor( generatorConfig: IGeneratorConfig, specification: SpecificationObject ) {
-        Object.assign( this.generatorConfig, generatorConfig );
+    constructor( specification: SpecificationObject, generatorConfig?: IGeneratorConfig ) {
+        if ( generatorConfig ) {
+            Object.assign( this.generatorConfig, generatorConfig );
+        }
         this.specification = specification;
         this.initialize();
     }
@@ -78,15 +74,16 @@ export class Generator {
      * Format norm specification based on generator configuration
      * Generate output files based on norm specification
      */
-    generate() {
+    generate(): void {
         console.log( 'generating starting' );
         this.formatSpecification();
         this.renderModels();
-        this.renderModul();
-        this.renderService();
-        this.renderInterceptor();
-        this.renderConfiguration();
-
+        if ( this.specification.methods ) {
+            this.renderModul();
+            this.renderService();
+            this.renderInterceptor();
+            this.renderConfiguration();
+        }
         console.log( 'generating done' );
     }
 
@@ -124,12 +121,10 @@ export class Generator {
     }
 
     private renderFile( templatePath: string, outputFile: string ): void {
-        const templateFileManager = new FileManager( templatePath );
-        templateFileManager.readFile()
+        new FileManager( templatePath ).readFile()
             .then( template => {
                 const output = Mustache.render( template, this.specification );
-
-                FileManager.writeFile( this.generatorConfig.outputDir + '/' + outputFile, output );
+                new FileManager( this.generatorConfig.outputDir + '/' + outputFile, output ).writeFile();
             } );
     }
 
@@ -150,7 +145,7 @@ export class Generator {
                 case "complexTypes":
                     ( specObject as ComplexType[] ).forEach( obj => {
                         obj.name = this.formatName( obj.name, this.generatorConfig.interfacePrefix, this.generatorConfig.interfaceSuffix );
-                        obj.extends = this.formatName( obj.extends, this.generatorConfig.interfacePrefix, this.generatorConfig.interfaceSuffix );
+                        obj.extending = this.formatName( obj.extending, this.generatorConfig.interfacePrefix, this.generatorConfig.interfaceSuffix );
                         obj.properties.forEach( property => {
                             property.type = this.getFormatedPropertyType( property );
                         } );
@@ -215,11 +210,17 @@ export class Generator {
         switch ( type ) {
             case 'string':
             case 'boolean':
-            case 'Date':
             case 'number':
-            case 'Object':
-            case 'never':
             case 'any':
+            case 'Date':
+            case 'Blob':
+            case 'Object':
+            case 'File':
+            case 'undefined':
+            case 'null':
+            case 'void':
+            case 'tuple':
+            case 'never':
                 return true;
             default:
                 return false;

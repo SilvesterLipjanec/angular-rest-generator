@@ -1,4 +1,5 @@
 
+/** Type definitions **/
 export interface MethodConfig {
     [method: string]: {
         consume: string;
@@ -8,33 +9,45 @@ export interface MethodConfig {
     }
 }
 
+export interface ConfigOptions { 
+    [method: string]: {
+        consume?: string[];
+        accept?: string[];
+    }
+}
+
 export interface ApiKeys {
     [name: string]: string;
 }
+
+/** Definition of available options **/
 
 export const apiEndpoints = [
 {{#servers}}    "{{{.}}}",
 {{/servers}}
 ];
 
+export const configOptions: ConfigOptions = {
 {{#methods}}
-{{#hasMediaTypeSetting}}const {{name}} = {
-{{#hasRequestBody}}    consume: [{{#requestBodies}} '{{{mediaType}}}',{{/requestBodies}} ],
+{{#hasMediaTypeSetting}}    {{name}}: {
+{{#hasRequestBody}}        consume: [{{#requestBodies}} '{{{mediaType}}}',{{/requestBodies}} ],
 {{/hasRequestBody}}
-{{#hasSuccessResponse}}    accept: [{{#successResponse}}{{#content}} '{{{mediaType}}}',{{/content}}{{/successResponse}} ]
+{{#hasSuccessResponse}}        accept: [{{#successResponse}}{{#content}} '{{{mediaType}}}',{{/content}}{{/successResponse}} ]
 {{/hasSuccessResponse}}
-};
+    },
 
 {{/hasMediaTypeSetting}}
 {{/methods}}
+}
 
+/** ENTER YOUR INITIAL CONFIGURATION OPTIONS HERE **/
 export const methodConfig: MethodConfig = {
 {{#methods}}    {{name}}: {
-{{#hasRequestBody}}        consume: {{name}}.consume[0],
+{{#hasRequestBody}}        consume: configOptions.{{name}}.consume[0],
 {{/hasRequestBody}}
 {{^hasRequestBody}}        consume: null,
 {{/hasRequestBody}}
-{{#hasSuccessResponse}}        accept: {{name}}.accept[0],
+{{#hasSuccessResponse}}        accept: configOptions.{{name}}.accept[0],
 {{/hasSuccessResponse}}
 {{^hasSuccessResponse}}        accept: null,
 {{/hasSuccessResponse}}
@@ -44,3 +57,11 @@ export const methodConfig: MethodConfig = {
 
 {{/methods}}
 }
+
+export const apiKeys: ApiKeys = {
+{{#security.usedApiKeys}}    {{.}}: null,
+{{/security.usedApiKeys}}
+}
+export const bearerToken = null; 
+export const basicToken = null; 
+export const apiEndpoint = apiEndpoints[0];

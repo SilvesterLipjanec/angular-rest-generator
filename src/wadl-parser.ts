@@ -152,7 +152,7 @@ export class WadlParser implements IParser {
             const enumObjects = this.findInNamespace( simpleType, "/restriction/enumeration", this.xsdXmlns );
             return {
                 name: this.getObjectPropertyValue( ['$', 'name'], simpleType ),
-                enum: enumObjects.map( ( enumObject, idx ) => ( {
+                values: enumObjects.map( ( enumObject, idx ) => ( {
                     value: this.getObjectPropertyValue( ['$', 'value'], enumObject ),
                     last: idx === ( enumObjects.length - 1 )
                 } ) )
@@ -203,7 +203,7 @@ export class WadlParser implements IParser {
                         isSimple: true
                     } )
                 ),
-                extends: extendsName
+                extending: extendsName
             }
         } );
     }

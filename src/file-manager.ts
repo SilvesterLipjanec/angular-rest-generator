@@ -18,8 +18,12 @@ export class FileManager {
     /**@private parsed path object */
     private pathObject: path.ParsedPath;
 
-    constructor( pathToFile: string ) {
+    /**@private file content */
+    private data: any;
+
+    constructor( pathToFile: string, data?: any ) {
         this.pathToFile = pathToFile;
+        this.data = data;
         this.parsePath();
     }
 
@@ -29,17 +33,15 @@ export class FileManager {
      * @param filePath specify path to new file
      * @param data content of new file
      */
-    static writeFile( filePath: string, data: string ): void {
-        mkdirp( path.dirname( filePath ), ( err ) => {
-            if ( err ) {
-                console.log( err );
+    writeFile(): void {
+        mkdirp.sync( path.dirname( this.pathToFile ) );
+
+        fs.writeFile( this.pathToFile, this.data, ( error ) => {
+            if ( error ) {
+                console.log( error );
             }
-            fs.writeFile( filePath, data, ( error ) => {
-                if ( error ) {
-                    console.log( error );
-                }
-            } );
         } );
+
     }
 
     /**
@@ -88,7 +90,7 @@ export class FileManager {
     createCopy( destinationFile: string ): void {
         if ( !this.isLocalFile() ) {
             this.fetchFile()
-                .then( data => FileManager.writeFile( destinationFile, data ) )
+                .then( data => new FileManager( destinationFile, data ).writeFile() )
                 .catch( error => console.log( error ) );
         }
         else {

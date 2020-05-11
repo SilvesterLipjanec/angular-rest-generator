@@ -7,7 +7,7 @@ import { IGeneratorConfig } from './generator-types';
 
 export interface SpecificationObject {
     servers?: string[];
-    models: ModelObject[];
+    models?: ModelObject[];
     complexTypes?: ComplexType[];
     enumTypes?: EnumType[];
     parameterTypes?: ParameterType[];
@@ -18,10 +18,11 @@ export interface SpecificationObject {
 }
 
 export interface SecurityObjects {
-    basicHttpSchemas: SecurityObject[],
-    bearerHttpSchemas: SecurityObject[],
-    headerApiKeySchemas: SecurityObject[],
-    queryApiKeySchemas: SecurityObject[],
+    basicHttpSchemas?: SecurityObject[],
+    bearerHttpSchemas?: SecurityObject[],
+    headerApiKeySchemas?: SecurityObject[],
+    queryApiKeySchemas?: SecurityObject[],
+    usedApiKeys?: string[];
 }
 export interface SecurityObject {
     scope: string[];
@@ -30,9 +31,8 @@ export interface SecurityObject {
 }
 
 export interface FunctionObject {
-    capitalize?: any;
+    capitalize?: () => ( text, render ) => string;
 }
-
 
 export interface MethodObject {
     name: string;
@@ -45,18 +45,25 @@ export interface MethodObject {
     requestBodies: MediaTypeObject[];
     successResponse: ResponseObject;
     failResponses: ResponseObject[];
-    path: string;
-    consumeFormData: any;
-    hasRequestBody: any;
-    hasMediaTypeSetting: any;
-    hasSuccessResponse: boolean;
-    hasNullBody: any;
-    hasHeaders: any;
-    hasParameters: any;
-    hasFailResponses: any;
-    hasCookieParams: any;
+    path: PathPart[];
     security: SecurityObjects;
+    hasSuccessResponse: boolean;
+    consumeFormData: () => boolean;
+    hasRequestBody: () => boolean;
+    hasMediaTypeSetting: () => boolean;
+    hasNullBody: () => boolean;
+    hasHeaders: () => boolean;
+    hasParameters: () => boolean;
+    hasFailResponses: () => boolean;
+    hasCookieParams: () => boolean;
 }
+
+export interface PathPart {
+    name: string;
+    isParam: boolean;
+    isLast: boolean;
+}
+
 export interface ResponseObject {
     content: MediaTypeObject[];
     code: string;
@@ -74,10 +81,10 @@ export type HttpMethod = 'get' | 'put' | 'post' | 'delete' | 'options' | 'head' 
 
 export interface EnumType {
     name: string;
-    enum?: ArrayObject[];
+    values?: EnumObject[];
 }
 
-export interface ArrayObject {
+export interface EnumObject {
     value: string;
     last: boolean;
 }
@@ -90,7 +97,7 @@ export interface ParameterType {
 export interface ComplexType {
     name: string;
     properties?: PropertyObject[];
-    extends?: string;
+    extending?: string;
 }
 
 export interface ModelObject {

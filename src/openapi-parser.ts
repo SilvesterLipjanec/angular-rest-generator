@@ -10,7 +10,7 @@ import * as YAML from 'yaml';
 import { OpenAPIV3 } from "openapi-types";
 import * as _ from 'lodash';
 import { __values } from 'tslib';
-import { SpecificationObject, PropertyObject, ArrayObject, ParameterObject, MethodObject, HttpMethod, ComponentObject, MediaTypeObject, ResponseObject, SecurityObjects, SecurityObject } from './types/specification-types';
+import { SpecificationObject, PropertyObject, EnumObject, ParameterObject, MethodObject, HttpMethod, ComponentObject, MediaTypeObject, ResponseObject, SecurityObjects, SecurityObject, PathPart } from './types/specification-types';
 
 export class OpenapiParser implements IParser {
 
@@ -43,8 +43,9 @@ export class OpenapiParser implements IParser {
                     this.initialize();
                     this.parseServers();
                     this.parsePaths();
-                    let security = this.specification.security && this.getParsedSecurityObject( this.specification.security );
-                    this.appendSecurityToMethods( security );
+                    this.normSpecification.security = this.specification.security && this.getParsedSecurityObject( this.specification.security );
+                    this.appendSecurityToMethods();
+                    this.setUsedApiKeys();
                     resolve( this.normSpecification );
                 } );
         } );
@@ -65,25 +66,45 @@ export class OpenapiParser implements IParser {
             parameterTypes: [],
             models: [],
             methods: [],
+            security: null
         }
     }
 
-    private appendSecurityToMethods( object: any ): void {
-        if ( !object ) return;
+    private appendSecurityToMethods(): void {
+        if ( !this.normSpecification.security ) return;
         this.normSpecification.methods.forEach( method => {
             if ( method.security != null ) {
                 Object.keys( method.security ).forEach( name => {
-                    if ( object[name] ) { // mam co poushut
-                        method.security[name] = this.pushIfNotExist( method.security[name], object[name] );
+                    if ( this.normSpecification.security[name] ) { // mam co poushut
+                        method.security[name] = this.pushIfArrNotExist( method.security[name], this.normSpecification.security[name] );
                     }
                 } );
             } else {
-                method.security = object;
+                method.security = this.normSpecification.security;
             }
         } );
     }
 
-    private pushIfNotExist( target: any[], source: any ): any {
+    private setUsedApiKeys(): void {
+        this.normSpecification.security = this.normSpecification.security || { usedApiKeys: [] };
+        this.normSpecification.security.usedApiKeys = this.normSpecification.security.usedApiKeys || [];
+        this.normSpecification.methods.forEach( method => {
+            if ( method.security != null ) {
+                method.security.headerApiKeySchemas && method.security.headerApiKeySchemas.forEach( schema =>
+                    this.pushIfNotExist( this.normSpecification.security.usedApiKeys, schema.name ) );
+                method.security.queryApiKeySchemas && method.security.queryApiKeySchemas.forEach( schema =>
+                    this.pushIfNotExist( this.normSpecification.security.usedApiKeys, schema.name ) );
+            }
+        } )
+    }
+
+    private pushIfNotExist( target: any[], source: any ) {
+        if ( !target.find( obj => obj === source ) ) {
+            target.push( source );
+        }
+    }
+
+    private pushIfArrNotExist( target: any[], source: any[] ): any {
         target = target || [];
         source.forEach( srcObj => {
             if ( !target.find( object => object.name === srcObj.name ) ) {
@@ -160,23 +181,27 @@ export class OpenapiParser implements IParser {
                 const httpMethods = _.pickBy( pathObject, this.isHttpMehod );
                 let methods = this.parseMethods( httpMethods as _.Dictionary<OpenAPIV3.OperationObject> )
                 methods.forEach( method => {
-                    method.path = this.includePathParameters( pathName );
+                    method.path = this.parsePathParameters( pathName );
                     this.normSpecification.methods.push( method );
                 } );
             } );
         }
     }
 
-    private includePathParameters( path: string ): string {
+    private parsePathParameters( path: string ): PathPart[] {
+        let resultPath: PathPart[] = [];
         const re = RegExp( '\{(.*?)\}', 'g' ); // match words in curly brackets
-        let found;
+        let pathArr = path.split( '/' );
+        pathArr.forEach( ( part, id ) => {
+            let found = re.exec( part );
+            resultPath.push( {
+                name: found ? found[1] : part,
+                isParam: found ? true : false,
+                isLast: id === pathArr.length - 1
+            } );
+        } );
 
-        while ( ( found = re.exec( path ) ) != null ) {
-            path = path.replace( found[0], '${ encodeURIComponent( parameters.' + found[1] + ') }' );
-        }
-
-        return path;
-
+        return resultPath;
     }
 
     private parseMethods( methods: _.Dictionary<OpenAPIV3.OperationObject> ): MethodObject[] {
@@ -259,7 +284,8 @@ export class OpenapiParser implements IParser {
                     return this.requestBodies != null;
                 },
                 hasHeaders: function () {
-                    return this.requestBodies != null
+                    return this.hasRequestBody()
+                        || this.hasSuccessResponse
                         || this.headerParameters != null
                         || this.security.basicHttpSchemas != null
                         || this.security.bearerHttpSchemas != null
@@ -303,11 +329,11 @@ export class OpenapiParser implements IParser {
         let defaultSchemaType = 'any';
         _.forEach( object.content, ( mediaTypeObject, mediaType ) => {
             let schemaType;
-            if ( this.isJsonMime( mediaType ) || this.isFormDataMime( mediaType ) ) {
+            if ( this.isXmlMime( mediaType ) ) {
+                schemaType = "string";
+            } else {
                 let componentObject = this.getComponentObject<OpenAPIV3.SchemaObject>( mediaTypeObject.schema, name );
                 schemaType = this.parseSchemaObject( componentObject.component, componentObject.name ).type;
-            } else if ( this.isXmlMime( mediaType ) ) {
-                schemaType = "string";
             }
 
             result = result || [];
@@ -404,11 +430,6 @@ export class OpenapiParser implements IParser {
 
     }
 
-
-    private isInType( type: string, actType: string ): boolean {
-        return type === actType;
-    }
-
     private isHttpMehod( value: Object, name: string ): boolean {
         switch ( name ) {
             case 'get':
@@ -418,7 +439,6 @@ export class OpenapiParser implements IParser {
             case 'options':
             case 'head':
             case 'patch':
-            case 'trace':
                 return true;
             default:
                 return false;
@@ -449,7 +469,7 @@ export class OpenapiParser implements IParser {
                 if ( !found ) {
                     this.normSpecification.enumTypes.push( {
                         name: typeName,
-                        enum: this.arrayToObjectArray( schemaObject.enum )
+                        values: this.arrayToObjectArray( schemaObject.enum )
                     } );
                 }
             } else {
@@ -557,7 +577,7 @@ export class OpenapiParser implements IParser {
         return undefined;
     }
 
-    private arrayToObjectArray( arr: any[] ): ArrayObject[] {
+    private arrayToObjectArray( arr: any[] ): EnumObject[] {
         return arr.map( ( arrItem, index ) => ( {
             value: arrItem,
             last: index === ( arr.length - 1 )
@@ -585,7 +605,8 @@ export class OpenapiParser implements IParser {
             case 'boolean':
                 return 'boolean';
             case 'string':
-                return ( format === 'date' || format === 'date-time' ) ? 'Date' : 'string';
+                return ( format === 'date' || format === 'date-time' ) ? 'Date' :
+                    format === 'binary' ? 'Blob' : 'string';
             default:
                 return 'Object';
         }
