@@ -10,7 +10,6 @@ import { FILE_EXT } from './types/generator-types';
 import * as https from 'https';
 import * as validUrl from 'valid-url';
 
-
 export class FileManager {
 
     /**@private  path to file*/

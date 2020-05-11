@@ -1,11 +1,10 @@
 {
   "compileOnSave": false,
   "compilerOptions": {
-    "baseUrl": ".",
     "outDir": "./dist",
     "sourceMap": true,
     "declaration": true,
-    "module": "commonjs",
+    "module": "CommonJS",
     "moduleResolution": "node",
     "target": "es2015"
   },

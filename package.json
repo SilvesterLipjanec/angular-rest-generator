@@ -2,16 +2,28 @@
   "name": "angular-rest-generator",
   "version": "0.0.0",
   "scripts": {
-    "build": "tsc",
-    "angular-rest-generator": "tsc --build ./tsconfig.json && node ./dist/main.js"
+    "build": "tsc"
   },
   "author": {
     "name": "Silvester Lipjanec",
     "email": "lipjanecsilvester@gmail.com"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SilvesterLipjanec/angular-rest-generator.git"
+  },
+  "keywords": [
+    "REST",
+    "Angular",
+    "OpenApi",
+    "WADL",
+    "generator"
+  ],
   "main": "dist/main.js",
   "types": "dist/main.d.ts",
-  "files": ["/dist"],
+  "files": [
+    "/dist"
+  ],
   "bin": {
     "angular-rest-generator": "dist/main.js"
   },
@@ -34,5 +46,6 @@
     "@types/yargs": "^15.0.4",
     "ts-node-dev": "^1.0.0-pre.44",
     "tslint": "~5.18.0"
-  }
+  },
+  "license": "MIT"
 }
