@@ -18,10 +18,10 @@ export interface SpecificationObject {
 }
 
 export interface SecurityObjects {
-    basicHttpSchemas?: SecurityObject[],
-    bearerHttpSchemas?: SecurityObject[],
-    headerApiKeySchemas?: SecurityObject[],
-    queryApiKeySchemas?: SecurityObject[],
+    basicHttpSchemas?: SecurityObject[];
+    bearerHttpSchemas?: SecurityObject[];
+    headerApiKeySchemas?: SecurityObject[];
+    queryApiKeySchemas?: SecurityObject[];
     usedApiKeys?: string[];
 }
 export interface SecurityObject {
